@@ -1,0 +1,10 @@
+include ':app'
+
+// Capacitor modules
+try {
+    def capacitorPlugins = new File(rootProject.projectDir, '../capacitor-cordova-android-plugins/build.gradle')
+    if (capacitorPlugins.exists()) {
+        include ':capacitor-cordova-android-plugins'
+        project(':capacitor-cordova-android-plugins').projectDir = new File(rootProject.projectDir, '../capacitor-cordova-android-plugins')
+    }
+} catch (Exception ignored) {}

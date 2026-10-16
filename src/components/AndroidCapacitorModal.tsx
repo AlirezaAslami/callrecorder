@@ -444,15 +444,49 @@ export const AndroidCapacitorModal: React.FC<AndroidCapacitorModalProps> = ({
           {/* Tab 3: Android APK Build Guide */}
           {activeTab === 'build' && (
             <div className="space-y-4">
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300 space-y-1">
-                <div className="font-semibold flex items-center gap-1.5">
-                  <Terminal className="w-4 h-4" />
-                  <span>{isPersian ? 'پیکربندی کامل Capacitor JS انجام شد' : 'Capacitor JS Configured'}</span>
+              {/* GitHub Actions Highlight Card */}
+              <div className="p-3.5 bg-gradient-to-r from-emerald-950/50 to-slate-900 border border-emerald-600/40 rounded-xl text-xs space-y-2">
+                <div className="font-semibold text-emerald-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Terminal className="w-4 h-4 text-emerald-400" />
+                    {isPersian ? 'ورکفلو خودکار گیت‌هاب (GitHub Actions CI/CD)' : 'GitHub Actions CI/CD'}
+                  </span>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-mono">
+                    .github/workflows/android-build.yml
+                  </span>
                 </div>
                 <p className="text-slate-300 leading-relaxed text-[11px]">
                   {isPersian
-                    ? 'فایل‌های `capacitor.config.ts`، `AndroidManifest.xml` (شامل کلیه مجوزهای پس‌زمینه)، `CallStateReceiver.java` و `CallRecordingService.java` در پروژه ایجاد شده‌اند. شما می‌توانید با دستورات زیر پروژه را در Android Studio باز کرده و بیلد APK بگیرید:'
-                    : 'The Capacitor configuration, Android Manifest, Background Call Receiver and Foreground Service are fully generated in the project.'}
+                    ? 'فایل ورکفلو با بهترین مکانیزم امضای دیجیتال (RSA 4096-bit و طراح‌های مدرن v1/v2/v3/v4) ایجاد شد. با هر Push یا زدن دکمه Run Workflow در گیت‌هاب، فایل‌های APK و AAB به صورت کاملاً ساین‌شده و آماده نصب بیلد و در بخش Artifacts تحویل داده می‌شوند.'
+                    : 'Configured with 4096-bit RSA and v1-v4 signature schemes with automatic keystore generation fallback.'}
+                </p>
+                <div className="p-2.5 bg-slate-950/80 rounded-lg border border-slate-800 text-[11px] text-slate-300 space-y-1">
+                  <div className="text-amber-400 font-semibold">
+                    {isPersian ? '⚡ مکانیزم هوشمند متغیرها (Secrets):' : 'Smart Secrets Fallback:'}
+                  </div>
+                  <div>
+                    {isPersian
+                      ? '• اگر هیچ متغیری در GitHub Secrets ثبت نکرده باشید: ورکفلو به شکل خودکار یک Keystore با کلید امنیتی ۴۰۹۶ بیتی ایجاد کرده، برنامه را ساین می‌کند و بکاپ کلید را در اختیارتان می‌گذارد!'
+                      : '• If no secrets are set: Auto-generates 4096-bit RSA key and signs cleanly.'}
+                  </div>
+                  <div>
+                    {isPersian
+                      ? '• در صورت تمایل به استفاده از کلید شخصی: متغیرهای ANDROID_KEYSTORE_BASE64 و KEYSTORE_PASSWORD را در تنظیمات گیت‌هاب قرار دهید.'
+                      : '• If using custom key: Provide ANDROID_KEYSTORE_BASE64 in GitHub Secrets.'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Local Build Commands Card */}
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300 space-y-1">
+                <div className="font-semibold flex items-center gap-1.5">
+                  <Terminal className="w-4 h-4" />
+                  <span>{isPersian ? 'روش دستی در کامپیوتر شخصی (Android Studio)' : 'Local Android Studio Build'}</span>
+                </div>
+                <p className="text-slate-300 leading-relaxed text-[11px]">
+                  {isPersian
+                    ? 'علاوه بر گیت‌هاب، در محیط محلی خود نیز می‌توانید با دستورات زیر پروژه را در Android Studio باز کنید:'
+                    : 'You can also open the project directly in Android Studio:'}
                 </p>
               </div>
 
