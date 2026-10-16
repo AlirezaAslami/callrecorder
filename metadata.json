@@ -1,0 +1,6 @@
+{
+  "name": "صداگیر - نرم‌افزار ضبط تماس با خروجی MP3 و حذف خودکار ۳۰ روزه",
+  "description": "نرم‌افزار حرفه‌ای ضبط مکالمات و تماس با خروجی استاندارد MP3، سیاست نگهداری حداکثر یک‌ماهه و پاک‌سازی خودکار قدیمی‌ترین فایل‌ها (FIFO).",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
