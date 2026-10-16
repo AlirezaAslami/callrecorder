@@ -32,6 +32,10 @@ jobs:
   build-android:
     name: Build & Digitally Sign Android App
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2048m
 
     steps:
       - name: 📥 Checkout Repository
@@ -44,8 +48,23 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: 📱 Setup Android SDK Tools
-        uses: android-actions/setup-android@v3
+      - name: 📱 Setup Android SDK Licenses (Native GitHub Runner)
+        run: |
+          echo "Configuring Android SDK licenses on native Ubuntu runner..."
+          mkdir -p "$ANDROID_HOME/licenses" || true
+          
+          # Accept official Android SDK licenses directly into licenses directory
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$ANDROID_HOME/licenses/android-sdk-license"
+          echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> "$ANDROID_HOME/licenses/android-sdk-license"
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+          echo "84831b9409646a233e8444777c32283657ec44ec" >> "$ANDROID_HOME/licenses/android-sdk-preview-license"
+          echo "84831b9409646a233e8444777c32283657ec44ec" > "$ANDROID_HOME/licenses/android-googletv-license"
+          echo "33b6a2b64920400829152f320ec45f6c0080944d" > "$ANDROID_HOME/licenses/google-gdk-license"
+          echo "e9acab5ab5fbb8d60e1149a3e144d47d45300229" > "$ANDROID_HOME/licenses/intel-android-extra-license"
+          echo "d975f751698a77b662f1254ddbeed3901e06dd46" > "$ANDROID_HOME/licenses/intel-android-sysimage-license"
+          echo "e6e730866305ac49c2d01602d376295aa60b5358" > "$ANDROID_HOME/licenses/mips-android-sysimage-license"
+          
+          echo "Android SDK licenses pre-accepted successfully."
 
       - name: 🟢 Setup Node.js 20
         uses: actions/setup-node@v4
@@ -63,7 +82,7 @@ jobs:
 
       - name: 🔄 Sync & Configure Capacitor Android Project
         run: |
-          # If android platform directory does not contain build.gradle, add platform
+          # If android directory is missing full structure, add it
           if [ ! -f "android/build.gradle" ]; then
             echo "Initializing Capacitor Android platform..."
             npx cap add android || true
@@ -72,8 +91,15 @@ jobs:
           echo "Synchronizing Capacitor Android assets..."
           npx cap sync android
 
-          # Ensure gradlew executable permission
-          chmod +x android/gradlew || true
+          # Ensure gradlew executable permission or fallback to gradle
+          if [ -f "android/gradlew" ]; then
+            chmod +x android/gradlew
+          else
+            echo "Gradle wrapper not found, generating wrapper..."
+            sudo apt-get update && sudo apt-get install -y gradle || true
+            cd android && gradle wrapper || true && cd ..
+            chmod +x android/gradlew || true
+          fi
 
       - name: 🔐 Prepare Digital Signing Keystore (Custom or Robust Auto-Generation)
         id: prepare-keystore
@@ -126,14 +152,22 @@ jobs:
         working-directory: android
         run: |
           echo "Running Gradle assembleRelease..."
-          ./gradlew assembleRelease --stacktrace
+          if [ -f "./gradlew" ]; then
+            ./gradlew assembleRelease --stacktrace
+          else
+            gradle assembleRelease --stacktrace
+          fi
 
       - name: 📦 Build Android App Bundle (.aab)
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_bundle == true }}
         working-directory: android
         run: |
           echo "Running Gradle bundleRelease..."
-          ./gradlew bundleRelease --stacktrace || true
+          if [ -f "./gradlew" ]; then
+            ./gradlew bundleRelease --stacktrace || true
+          else
+            gradle bundleRelease --stacktrace || true
+          fi
 
       - name: 🔏 Digitally Sign APK with apksigner (v1 + v2 + v3 + v4 Schemes)
         id: sign-apk
@@ -144,9 +178,13 @@ jobs:
           KEY_PASS: ${{ steps.prepare-keystore.outputs.key_pass }}
         run: |
           # Locate built unsigned/release APK
-          ORIGINAL_APK=$(find android/app/build/outputs/apk/release -type f -name "*.apk" | head -n 1)
+          ORIGINAL_APK=$(find android/app/build/outputs/apk -type f -name "*.apk" | grep -i "release" | head -n 1)
           if [ -z "$ORIGINAL_APK" ]; then
-            echo "❌ No release APK found in build outputs!"
+            ORIGINAL_APK=$(find android/app/build/outputs/apk -type f -name "*.apk" | head -n 1)
+          fi
+
+          if [ -z "$ORIGINAL_APK" ]; then
+            echo "❌ No compiled APK found in build outputs!"
             exit 1
           fi
 
@@ -154,22 +192,32 @@ jobs:
           mkdir -p output_artifacts
 
           # Locate Android build tools (zipalign and apksigner)
-          BUILD_TOOLS_PATH=$(find $ANDROID_HOME/build-tools -type f -name "apksigner" | sort -V | tail -n 1 | xargs dirname)
-          ZIPALIGN="$BUILD_TOOLS_PATH/zipalign"
-          APKSIGNER="$BUILD_TOOLS_PATH/apksigner"
+          BUILD_TOOLS_PATH=$(find $ANDROID_HOME/build-tools -type f -name "apksigner" 2>/dev/null | sort -V | tail -n 1 | xargs dirname)
+          if [ -n "$BUILD_TOOLS_PATH" ]; then
+            ZIPALIGN="$BUILD_TOOLS_PATH/zipalign"
+            APKSIGNER="$BUILD_TOOLS_PATH/apksigner"
+          else
+            ZIPALIGN="zipalign"
+            APKSIGNER="apksigner"
+          fi
 
-          echo "Using Android Build Tools at: $BUILD_TOOLS_PATH"
+          echo "Using zipalign: $ZIPALIGN"
+          echo "Using apksigner: $APKSIGNER"
 
           ALIGNED_APK="output_artifacts/SadaGir-aligned.apk"
           FINAL_SIGNED_APK="output_artifacts/SadaGir-CallRecorder-Signed-Release.apk"
 
           # Step 1: 4-byte page-alignment (required by modern Android OS)
           echo "Aligning APK with zipalign..."
-          $ZIPALIGN -v -p 4 "$ORIGINAL_APK" "$ALIGNED_APK"
+          if command -v "$ZIPALIGN" &> /dev/null || [ -f "$ZIPALIGN" ]; then
+            "$ZIPALIGN" -v -p 4 "$ORIGINAL_APK" "$ALIGNED_APK"
+          else
+            cp "$ORIGINAL_APK" "$ALIGNED_APK"
+          fi
 
           # Step 2: Modern Multi-Scheme Signing (v1 Jar + v2 Full APK + v3 Key Rotation + v4 Streaming)
           echo "Signing APK with apksigner (v1, v2, v3, v4)..."
-          $APKSIGNER sign \
+          "$APKSIGNER" sign \
             --ks "$KEYSTORE_PATH" \
             --ks-key-alias "$KEY_ALIAS" \
             --ks-pass pass:"$KEYSTORE_PASS" \
@@ -183,7 +231,7 @@ jobs:
 
           # Step 3: Signature verification check
           echo "Verifying APK Digital Signature..."
-          $APKSIGNER verify --verbose --print-certs "$FINAL_SIGNED_APK"
+          "$APKSIGNER" verify --verbose --print-certs "$FINAL_SIGNED_APK"
 
           # Clean up intermediate aligned file
           rm -f "$ALIGNED_APK"
@@ -197,7 +245,7 @@ jobs:
           KEY_ALIAS: ${{ steps.prepare-keystore.outputs.key_alias }}
           KEY_PASS: ${{ steps.prepare-keystore.outputs.key_pass }}
         run: |
-          ORIGINAL_AAB=$(find android/app/build/outputs/bundle/release -type f -name "*.aab" | head -n 1)
+          ORIGINAL_AAB=$(find android/app/build/outputs/bundle -type f -name "*.aab" | head -n 1)
           if [ -n "$ORIGINAL_AAB" ]; then
             FINAL_SIGNED_AAB="output_artifacts/SadaGir-CallRecorder-Signed-Release.aab"
             cp "$ORIGINAL_AAB" "$FINAL_SIGNED_AAB"

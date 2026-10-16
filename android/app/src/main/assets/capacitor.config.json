@@ -1,0 +1,9 @@
+{
+	"appId": "com.sadagir.callrecorder",
+	"appName": "صداگیر",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https"
+	},
+	"plugins": {}
+}
