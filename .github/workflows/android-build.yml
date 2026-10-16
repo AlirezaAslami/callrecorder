@@ -92,6 +92,13 @@ jobs:
             npx cap add android || true
           fi
 
+          # Ensure Android resources (drawables, mipmaps, styles, themes) are present
+          if [ ! -d "android/app/src/main/res/values" ] || [ ! -d "android/app/src/main/res/mipmap-hdpi" ]; then
+            echo "Restoring base Android resources from template..."
+            mkdir -p android/app/src/main/res
+            tar -zxvf node_modules/@capacitor/cli/assets/android-template.tar.gz --strip-components=4 -C android/app/src/main/res app/src/main/res || true
+          fi
+
           echo "Synchronizing Capacitor Android assets..."
           npx cap sync android
 

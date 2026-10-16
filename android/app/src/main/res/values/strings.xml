@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">صداگیر</string>
+    <string name="title_activity_main">صداگیر</string>
+    <string name="package_name">com.sadagir.callrecorder</string>
+    <string name="custom_url_scheme">com.sadagir.callrecorder</string>
+</resources>
